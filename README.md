@@ -123,4 +123,4 @@ This is a portfolio summary. The full source code is private per Epitech academi
 
 ---
 
-[Imran Nogueira](https://github.com/imrannnn30)
+[Imran Nogueira](https://github.com/imran-nogueira)
