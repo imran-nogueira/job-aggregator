@@ -1,6 +1,4 @@
-# Job Aggregator
-
-> A job & internship aggregator for students, with a Python AI microservice that ranks offers by semantic similarity to a free-text search.
+<picture><source media="(prefers-color-scheme: dark)" srcset="assets/banner-dark.png"><img alt="Job Aggregator — A job & internship board for students, with an AI microservice ranking offers by semantic similarity." src="assets/banner-light.png"></picture>
 
 **Epitech Bachelor · Year 1 · Year-End Project (B-YEP-200) · Apr–May 2026**
 Source code is private under Epitech's academic policy. Happy to walk you through it or demo it live → **imran.nogueira@gmail.com**
