@@ -1,126 +1,47 @@
-# Job Aggregator — Fullstack Platform with AI Scoring
+# Job Aggregator
 
-> End-of-year fullstack project: a job & internship aggregator with a Python AI microservice that scores offers by semantic similarity to a search query.
+> A job & internship aggregator for students, with a Python AI microservice that ranks offers by semantic similarity to a free-text search.
 
-[![Next.js](https://img.shields.io/badge/Next.js-16-000000?style=flat&logo=nextdotjs&logoColor=white)](https://nextjs.org/)
-[![Express](https://img.shields.io/badge/Express-TypeScript-000000?style=flat&logo=express&logoColor=white)](https://expressjs.com/)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15-4169E1?style=flat&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-IA%20service-009688?style=flat&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
-[![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?style=flat&logo=docker&logoColor=white)](https://www.docker.com/)
-[![Jest](https://img.shields.io/badge/Tests-Jest%20%2B%20Supertest-C21325?style=flat&logo=jest&logoColor=white)](https://jestjs.io/)
+**Epitech Bachelor · Year 1 · Year-End Project (B-YEP-200) · Apr–May 2026**
+Source code is private under Epitech's academic policy. Happy to walk you through it or demo it live → **imran.nogueira@gmail.com**
 
-## What it is
+## Overview
 
-Job Aggregator is the **end-of-year project** of my first year at Epitech: a complete fullstack platform that collects, normalizes, and surfaces job & internship offers, with an extra twist — a **Python AI microservice** that ranks offers by semantic similarity to a user's free-text query (e.g. *"Stage Python Paris backend"*) using sentence embeddings.
-
-The whole stack runs in **Docker Compose**: frontend, backend API, AI service, PostgreSQL database, and an Adminer UI for DB inspection.
+A fullstack platform that collects job and internship offers, normalizes them into a single schema and lets students search, filter and save them. On top of keyword filters, a dedicated AI service ranks offers against a natural-language query such as *"Stage Python Paris backend"*. Offers older than 60 days are flagged as likely **ghost jobs**.
 
 ## Stack
 
-### Frontend
-| Tool          | Purpose                              |
-| ------------- | ------------------------------------ |
-| Next.js 16    | React framework with App Router      |
-| TypeScript    | Static typing across the UI          |
-| Tailwind CSS  | Utility-first styling                |
+| Layer | Tech |
+|---|---|
+| Frontend | Next.js, React, TypeScript, Tailwind CSS |
+| Backend API | Node.js, Express, TypeScript, Zod validation, JWT + bcrypt, express-rate-limit, Nodemailer |
+| AI service | Python, FastAPI, sentence-transformers (`all-MiniLM-L6-v2`), NumPy |
+| Data | PostgreSQL 15 |
+| Quality | Jest + Supertest, ESLint, GitHub Actions CI (lint + tests) |
+| Infra | Docker Compose (frontend, backend, AI service, database, Adminer) |
 
-### Backend API
-| Tool                  | Purpose                                  |
-| --------------------- | ---------------------------------------- |
-| Node.js + Express 5   | REST API server                          |
-| TypeScript            | Strict typing on routes, controllers, DB |
-| PostgreSQL 15         | Relational database                      |
-| Zod                   | Runtime payload validation               |
-| JWT + bcrypt          | Auth + password hashing                  |
-| Nodemailer            | Transactional emails                     |
-| express-rate-limit    | Per-route throttling                     |
-| Jest + Supertest      | Unit + API tests                         |
-
-### AI Service
-| Tool                          | Purpose                                                  |
-| ----------------------------- | -------------------------------------------------------- |
-| FastAPI                       | Lightweight Python service                               |
-| `sentence-transformers`       | `all-MiniLM-L6-v2` embeddings (80 MB model, loaded once) |
-| `psycopg2`                    | Direct PostgreSQL access for offer retrieval             |
-| NumPy                         | Cosine similarity ranking                                |
-
-### DevOps
-| Tool            | Purpose                                  |
-| --------------- | ---------------------------------------- |
-| Docker Compose  | One-command orchestration of 5 services  |
-| Adminer         | Web UI for DB inspection (port 8282)     |
-
-## Architecture
+## How it works
 
 ```
-┌─────────────────┐         ┌───────────────────┐         ┌──────────────┐
-│  Frontend       │         │  Backend API      │         │  PostgreSQL  │
-│  Next.js :3000  │ ──HTTP─▶│  Express :5001    │ ──SQL──▶│  :5432       │
-└─────────────────┘         │  (TS, Zod, JWT)   │         └──────┬───────┘
-                            └──────┬────────────┘                │
-                                   │                             │
-                                   │ /score                      │
-                                   ▼                             │
-                            ┌───────────────────┐                │
-                            │  AI microservice  │ ─direct SQL────┘
-                            │  FastAPI :8000    │
-                            │  MiniLM embeddings│
-                            └───────────────────┘
+Next.js ──HTTP──▶ Express API ──SQL──▶ PostgreSQL
+                       │                    ▲
+                       └──/score──▶ FastAPI AI service (embeddings stored per offer)
 ```
 
-- The **AI service** boots, loads the embedding model once (`all-MiniLM-L6-v2`), and exposes a `/score` endpoint
-- Given a free-text query, it embeds the query, fetches offers from PostgreSQL, computes cosine similarity, and returns the top N matches with scores
-- The backend uses standard CRUD endpoints for accounts, saved offers, admin, etc.
+1. `/compute-embeddings` encodes each offer's title + description once (384-dim vectors) and stores them in PostgreSQL.
+2. `/score` encodes the user's query, computes cosine similarity against every stored offer and returns the top matches.
+3. Scores are spread with a square root (a 0.5 similarity becomes 70/100 instead of 50) and boosted ×1.3 when the query mentions the offer's location.
 
-## Features
+## Key decisions
 
-- **Account system** — register, login, JWT sessions, secured routes, rate-limited endpoints
-- **Offer aggregation & normalization** — heterogeneous sources normalized into a single schema
-- **Search & filtering** — by company, location, contract type, keywords
-- **AI semantic search** — full-text query → embedding → top-ranked offers via cosine similarity
-- **Saved offers** — per-user shortlist with one-click apply modal
-- **Admin panel** — for offer & user management
-- **Dashboard** — usage stats, charts (Recharts/Chart-like component)
-- **Transactional emails** — Nodemailer for confirmations
-- **End-to-end Dockerized** — one `docker compose up`
+- **Embeddings in PostgreSQL, no vector database** — at this data size a `bytea` column plus NumPy is enough, and it saves a whole service to run.
+- **AI as a separate container** — the 80 MB model loads once at startup and the Node API stays lightweight.
+- **Decisions written down** — the project ships Architecture Decision Records for architecture, data & AI, security, CI, deployment and accessibility, plus a sourced market scan and a value proposition.
 
-## Documentation
+## Results
 
-Beyond the code, the project ships with a full set of **Architecture Decision Records** in `docs/ADR/` :
+- 25 backend tests (normalizer unit tests + API route tests) running in CI.
 
-- **Architecture** — service split, communication patterns, scaling rationale
-- **Data** — schema design, IA service design, feature data analytics
-- **Security** — authentication choices, password policy, rate limiting
-- **CI** — pipeline design
-- **Deployment** — container strategy and environment variables
-- **Accessibility** — WCAG audit results with screenshots (dashboard, login, offer detail, offers list)
+## Contact
 
-Plus a **sourced market scan** and a **value proposition** document, because shipping isn't only about the code.
-
-## What I learned
-
-- **Designing a multi-service architecture** — splitting a monolithic instinct into 3 independent services (web, API, AI) talking over HTTP and SQL, each containerized with healthchecks and explicit dependencies
-- **Semantic search without a vector DB** — applying `sentence-transformers` directly on a PostgreSQL-backed dataset, embedding queries at request time, ranking with NumPy cosine similarity
-- **TypeScript in production** — strict types on Express routes, request validation with Zod schemas, types shared mentally between API contracts and frontend consumers
-- **Test discipline** — unit tests for the offer normalizer, API tests with Supertest, real coverage on the critical paths
-- **Documentation as a deliverable** — writing ADRs the way real teams do, defending each architectural choice in a 5-paragraph note, instead of just shipping a README
-
-## Tested at
-
-- Defense + Review with my pedagogical lead in May 2026
-- Final mark on the project follow-up : **90/100** (progressive improvement from 20 → 50 → 90 over three review milestones)
-
-## Project context
-
-- **Year** : 2025–2026
-- **School** : Epitech Bachelor, Mulhouse
-- **Module** : B-YEP-200 — Year-End Project
-- **Team** : 4 members
-
-## Note
-
-This is a portfolio summary. The full source code is private per Epitech academic policy. Available on request for recruiters.
-
----
-
-[Imran Nogueira](https://github.com/imran-nogueira)
+Code walkthrough or live demo on request → **imran.nogueira@gmail.com** · [Portfolio](https://imran-nogueira.github.io)
